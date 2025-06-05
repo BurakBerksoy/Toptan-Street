@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" viewBox="0 0 24 24" version="1.1">
+  <defs>
+    <path d="M22.56,12.25 C22.56,11.47 22.49,10.72 22.36,10 L12,10 L12,14.26 L17.92,14.26 C17.66,15.63 16.89,16.79 15.72,17.56 L15.72,20.31 L19.28,20.31 C21.36,18.34 22.56,15.54 22.56,12.25 Z" id="path-1"></path>
+    <path d="M12,23 C14.96,23 17.43,22 19.28,20.31 L15.72,17.56 C14.74,18.21 13.5,18.58 12,18.58 C9.06,18.58 6.59,16.63 5.73,13.98 L2.06,13.98 L2.06,16.8 C3.9,20.43 7.66,23 12,23 Z" id="path-2"></path>
+    <path d="M5.73,13.98 C5.5,13.33 5.37,12.64 5.37,11.92 C5.37,11.2 5.5,10.51 5.73,9.86 L5.73,7.04 L2.06,7.04 C1.38,8.49 1,10.16 1,11.92 C1,13.68 1.38,15.35 2.06,16.8 L5.73,13.98 Z" id="path-3"></path>
+    <path d="M12,5.26 C13.62,5.26 15.06,5.83 16.21,6.93 L19.36,3.78 C17.42,1.97 14.96,0.92 12,0.92 C7.66,0.92 3.9,3.49 2.06,7.04 L5.73,9.86 C6.59,7.21 9.06,5.26 12,5.26 Z" id="path-4"></path>
+  </defs>
+  <g id="Google-Button" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+    <g id="Google-Logo">
+      <mask id="mask-1" fill="white">
+        <use xlink:href="#path-1"></use>
+      </mask>
+      <use id="Blue" fill="#4285F4" xlink:href="#path-1"></use>
+      <mask id="mask-2" fill="white">
+        <use xlink:href="#path-2"></use>
+      </mask>
+      <use id="Green" fill="#34A853" xlink:href="#path-2"></use>
+      <mask id="mask-3" fill="white">
+        <use xlink:href="#path-3"></use>
+      </mask>
+      <use id="Yellow" fill="#FBBC05" xlink:href="#path-3"></use>
+      <mask id="mask-4" fill="white">
+        <use xlink:href="#path-4"></use>
+      </mask>
+      <use id="Red" fill="#EA4335" xlink:href="#path-4"></use>
+    </g>
+  </g>
+</svg>
