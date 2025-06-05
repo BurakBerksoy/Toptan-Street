@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:toptan_street/core/constants/app_constants.dart';
 import 'package:toptan_street/core/providers/app_state_provider.dart';
 import 'package:toptan_street/core/theme/app_theme.dart';
+import 'package:toptan_street/features/auth/register_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -271,6 +272,10 @@ class _LoginPageState extends State<LoginPage> {
                   TextButton(
                     onPressed: () {
                       // Kayıt sayfasına yönlendir
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const RegisterPage()),
+                      );
                     },
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,

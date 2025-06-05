@@ -167,7 +167,10 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
             Container(
               margin: const EdgeInsets.only(right: 12),
               child: TextButton(
-                onPressed: () => _showAuthMenu(context),
+                onPressed: () {
+                  // Direkt login sayfasına yönlendir
+                  Navigator.pushNamed(context, '/login');
+                },
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -258,44 +261,6 @@ class TopNavbar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
   
-  void _showAuthMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.login, color: AppTheme.primaryColor),
-              title: const Text('Giriş Yap'),
-              onTap: () {
-                Navigator.pop(context);
-                // Named route ile login sayfasına yönlendir
-                Navigator.pushNamed(context, '/login');
-              },
-            ),
-            const Divider(height: 0),
-            ListTile(
-              leading: const Icon(Icons.person_add, color: AppTheme.primaryColor),
-              title: const Text('Kayıt Ol'),
-              onTap: () {
-                Navigator.pop(context);
-                // Kayıt sayfasına yönlendir
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Bottom sheet kodu kaldırıldı
   
 }
