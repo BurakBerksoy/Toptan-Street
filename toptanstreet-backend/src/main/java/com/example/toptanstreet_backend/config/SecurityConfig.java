@@ -19,6 +19,7 @@ public class SecurityConfig {
             .csrf().disable()
             .authorizeHttpRequests()
             .requestMatchers("/api/v1/auth/**").permitAll()
+            .requestMatchers("/api/v1/verification/**").permitAll() // E-posta doğrulama endpoint'leri
             .anyRequest().authenticated()
             .and()
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);

@@ -7,6 +7,7 @@ import 'package:toptan_street/core/providers/app_state_provider.dart';
 import 'package:toptan_street/core/services/api_service.dart';
 import 'package:toptan_street/core/theme/app_theme.dart';
 import 'package:toptan_street/features/auth/login_page.dart';
+import 'package:toptan_street/features/auth/verification_code_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -48,8 +49,8 @@ class _RegisterPageState extends State<RegisterPage> {
       });
       
       try {
-        // Backend'e kayıt için API çağrısı yap
-        final response = await ApiService.register(
+        // Backend'e kayıt başlatma için API çağrısı yap
+        final response = await ApiService.initiateRegistration(
           firstName: _firstNameController.text.trim(),
           lastName: _lastNameController.text.trim(),
           email: _emailController.text.trim(),
@@ -58,29 +59,39 @@ class _RegisterPageState extends State<RegisterPage> {
         );
         
         if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          
           if (response['success']) {
-            // Kayıt başarılı, kullanıcıyı giriş durumuna getir ve ana sayfaya yönlendir
-            final appState = Provider.of<AppStateProvider>(context, listen: false);
-            appState.login(); // Kullanıcıyı giriş yapmış duruma getir
+            // Doğrulama kodunu gönderme başarılı, doğrulama ekranına yönlendir
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VerificationCodePage(
+                  firstName: _firstNameController.text.trim(),
+                  lastName: _lastNameController.text.trim(),
+                  email: _emailController.text.trim(),
+                  password: _passwordController.text.trim(),
+                  role: _selectedRole,
+                ),
+              ),
+            );
             
-            // Kayıt sayfasını kapat ve ana sayfaya dön
-            Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-            
-            // Başarı mesajı
+            // Bilgilendirme mesajı
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  response['message'] ?? 'Kayıt başarılı!',
+                  response['message'] ?? 'Doğrulama kodu e-posta adresinize gönderildi',
                   style: GoogleFonts.poppins(),
                 ),
                 backgroundColor: Colors.green,
               ),
             );
           } else {
-            // Kayıt hatası
+            // Doğrulama kodu gönderme hatası
             setState(() {
-              _errorMessage = response['message'] ?? 'Kayıt sırasında bir hata oluştu';
-              _isLoading = false;
+              _errorMessage = response['message'] ?? 'Doğrulama kodu gönderilirken bir hata oluştu';
             });
           }
         }

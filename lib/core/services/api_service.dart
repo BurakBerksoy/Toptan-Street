@@ -94,5 +94,132 @@ class ApiService {
     }
   }
   
+  // E-posta doğrulama sürecini başlat
+  static Future<Map<String, dynamic>> initiateRegistration({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    required String role, // WHOLESALER veya RETAILER
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/initiate-register'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'firstName': firstName,
+          'lastName': lastName,
+          'email': email,
+          'password': password,
+          'role': role,
+        }),
+      );
+
+      final responseData = jsonDecode(response.body);
+      
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Doğrulama kodu e-posta adresinize gönderildi',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Doğrulama kodu gönderilirken bir hata oluştu',
+          'data': null,
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Bağlantı hatası: $e',
+        'data': null,
+      };
+    }
+  }
+
+  // Doğrulama kodunu kontrol et
+  static Future<Map<String, dynamic>> verifyCode({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/verification/verify'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+          'code': code,
+        }),
+      );
+
+      final responseData = jsonDecode(response.body);
+      
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'E-posta doğrulama başarılı',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Doğrulama kodu geçersiz veya süresi dolmuş',
+          'data': null,
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Bağlantı hatası: $e',
+        'data': null,
+      };
+    }
+  }
+
+  // Doğrulama kodunu yeniden gönder
+  static Future<Map<String, dynamic>> resendVerificationCode({
+    required String email,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/verification/send'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+        }),
+      );
+
+      final responseData = jsonDecode(response.body);
+      
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Doğrulama kodu yeniden gönderildi',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Doğrulama kodu gönderilirken bir hata oluştu',
+          'data': null,
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Bağlantı hatası: $e',
+        'data': null,
+      };
+    }
+  }
+  
   // Diğer API istekleri buraya eklenebilir (profil güncelleme vb.)
 }

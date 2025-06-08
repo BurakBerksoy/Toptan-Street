@@ -15,12 +15,40 @@ public class UserService {
     
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final VerificationService verificationService;
     
+    /**
+     * İlk adım kayıt işlemi - doğrulama kodu gönderir
+     * 
+     * @param registerRequest Kayıt bilgileri
+     * @return Doğrulama kodu gönderildiği bilgisi
+     */
+    public String initiateRegistration(RegisterRequest registerRequest) {
+        // Email kullanımda mı kontrol et
+        if (userRepository.existsByEmail(registerRequest.getEmail())) {
+            throw new RuntimeException("Email zaten kullanımda");
+        }
+        
+        // Doğrulama kodu gönder
+        return verificationService.createAndSendVerificationCode(registerRequest.getEmail());
+    }
+    
+    /**
+     * E-posta doğrulandıktan sonra kullanıcı kaydını tamamlar
+     * 
+     * @param registerRequest Kayıt bilgileri
+     * @return Kaydedilen kullanıcı
+     */
     @Transactional
     public User registerUser(RegisterRequest registerRequest) {
         // Email kullanımda mı kontrol et
         if (userRepository.existsByEmail(registerRequest.getEmail())) {
             throw new RuntimeException("Email zaten kullanımda");
+        }
+        
+        // Email doğrulanmış mı kontrol et
+        if (!verificationService.isEmailVerified(registerRequest.getEmail())) {
+            throw new RuntimeException("E-posta adresi doğrulanmamış");
         }
         
         // Yeni kullanıcı oluştur
