@@ -48,7 +48,19 @@ class _RegisterPageState extends State<RegisterPage> {
         _errorMessage = null;
       });
       
+      // Form verilerini ekranda göster (hata ayıklama)
+      debugPrint('Kayıt bilgileri:');
+      debugPrint('Ad: ${_firstNameController.text.trim()}');
+      debugPrint('Soyad: ${_lastNameController.text.trim()}');
+      debugPrint('E-mail: ${_emailController.text.trim()}');
+      debugPrint('Rol: ${_selectedRole.name}');
+      
       try {
+        debugPrint('==========================================');
+        debugPrint('Backend\'e kayıt başlatma isteği gönderiliyor...');
+        debugPrint('Kayıt bilgileri: ${_firstNameController.text.trim()}, ${_lastNameController.text.trim()}, ${_emailController.text.trim()}, Rol: ${_selectedRole.name}');
+        debugPrint('==========================================');
+        
         // Backend'e kayıt başlatma için API çağrısı yap
         final response = await ApiService.initiateRegistration(
           firstName: _firstNameController.text.trim(),
@@ -56,27 +68,87 @@ class _RegisterPageState extends State<RegisterPage> {
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
           role: _selectedRole.name, // WHOLESALER veya RETAILER olarak gönderilecek
-        );
+        ).timeout(Duration(seconds: 15), onTimeout: () {
+          // Zaman aşımında özel işlem
+          debugPrint('Kayıt başlatma isteği zaman aşımına uğradı!');
+          return {
+            'success': false,
+            'message': 'Sunucu yanıt vermiyor. Lütfen daha sonra tekrar deneyin.',
+            'data': null
+          };
+        });
+        
+        // API yanıtını göster (hata ayıklama)
+        debugPrint('==========================================');
+        debugPrint('API yanıtı (detaylı): $response');
+        debugPrint('Başarı durumu: ${response['success']} (${response['success']?.runtimeType})');
+        debugPrint('Mesaj: ${response['message']}');
+        debugPrint('Veri: ${response['data']}');
+        debugPrint('API yanıtındaki tüm anahtarlar: ${response.keys.toList()}');
+        debugPrint('==========================================');
+        
+        // Boş yanıt kontrolü
+        if (response == null) {
+          throw Exception('Sunucudan yanıt alınamadı.');
+        }
         
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
           
-          if (response['success']) {
-            // Doğrulama kodunu gönderme başarılı, doğrulama ekranına yönlendir
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VerificationCodePage(
-                  firstName: _firstNameController.text.trim(),
-                  lastName: _lastNameController.text.trim(),
-                  email: _emailController.text.trim(),
-                  password: _passwordController.text.trim(),
-                  role: _selectedRole,
+          debugPrint('Yanıt success değeri inceleniyor: ${response['success']}, tipi: ${response['success'].runtimeType}');
+          if (response['success'] == true) {
+            debugPrint('\n========== YÖNLENDİRME YAPILIYOR ==========');
+            debugPrint('Kayıt başlatma başarılı, doğrulama sayfasına geçiliyor...');
+            
+            // Doğrudan Navigator çağrısı yapıyoruz
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              debugPrint('YÖNLENDIRME: VerificationCodePage\'e geçiş yapılıyor...');
+              
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => VerificationCodePage(
+                    firstName: _firstNameController.text.trim(),
+                    lastName: _lastNameController.text.trim(),
+                    email: _emailController.text.trim(),
+                    password: _passwordController.text.trim(),
+                    role: _selectedRole,
+                  ),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
                 ),
-              ),
-            );
+              );
+            });
+            
+            // Alternatif basit yönlendirme (WidgetsBinding yaklaşımı başarısız olursa)
+            if (!mounted) return;
+            try {
+              // Direkt yönlendirmeyi dene
+              debugPrint('YÖNLENDIRME: Alternatif yöntem deneniyor...');
+              
+              // 200 ms bekleyip direkt geçiş yapmayı dene
+              Future.delayed(Duration(milliseconds: 200), () {
+                if (!mounted) return;
+                debugPrint('YÖNLENDIRME: Gecikme sonrası geçiş yapılıyor');
+                
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => VerificationCodePage(
+                      firstName: _firstNameController.text.trim(),
+                      lastName: _lastNameController.text.trim(),
+                      email: _emailController.text.trim(),
+                      password: _passwordController.text.trim(),
+                      role: _selectedRole,
+                    ),
+                  ),
+                );
+              });
+            } catch (navigationError) {
+              debugPrint('YÖNLENDIRME HATASI: $navigationError');
+            }
             
             // Bilgilendirme mesajı
             ScaffoldMessenger.of(context).showSnackBar(
@@ -88,17 +160,51 @@ class _RegisterPageState extends State<RegisterPage> {
                 backgroundColor: Colors.green,
               ),
             );
+            
+            // Debug: Doğrulama kodunun gönderildiğini onaylama mesajı
+            debugPrint('Doğrulama kodu gönderildi mesajı gösterildi');
           } else {
             // Doğrulama kodu gönderme hatası
+            debugPrint('Kayıt başlatma başarısız: ${response['message']}');
             setState(() {
-              _errorMessage = response['message'] ?? 'Doğrulama kodu gönderilirken bir hata oluştu';
+              // Daha açıklayıcı hata mesajları
+              String hata = response['message'] ?? 'Doğrulama kodu gönderilirken bir hata oluştu';
+              
+              // Özel hata durumlarını kontrol et
+              if (hata.contains('Email already exists') || 
+                  hata.contains('E-posta zaten kullanımda') ||
+                  hata.toLowerCase().contains('e-posta adresi kayıtlı')) {
+                hata = 'Bu e-posta adresi zaten sistemde kayıtlı. Farklı bir e-posta deneyin veya giriş yapmayı deneyin.';
+              } else if (hata.contains('Invalid email format') ||
+                       hata.contains('Geçersiz e-posta formatı')) {
+                hata = 'Lütfen geçerli bir e-posta adresi girin.';
+              } else if (hata.contains('Password') || hata.contains('Şifre')) {
+                hata = 'Şifre gereksinimlerini karşılamıyor. En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam içermelidir.';
+              } else if (hata.contains('Connection') || hata.contains('Bağlantı')) {
+                hata = 'Sunucu bağlantısı kurulamadı. İnternet bağlantınızı kontrol edin ve tekrar deneyin.';
+              }
+              
+              _errorMessage = hata;
             });
+            
+            // Kullanıcıya hata mesajını görmesi için ekstra görsel uyarı
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Kayıt başlatılamıyor: ' + (response['message'] ?? 'Bilinmeyen hata'),
+                  style: GoogleFonts.poppins(),
+                ),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 5),
+              ),
+            );
           }
         }
       } catch (e) {
+        debugPrint('Kayıt sırasında istisna: $e');
         if (mounted) {
           setState(() {
-            _errorMessage = 'Bağlantı hatası: ${e.toString()}';
+            _errorMessage = 'Kayıt başlatılamadı: ${e.toString()}';
             _isLoading = false;
           });
         }

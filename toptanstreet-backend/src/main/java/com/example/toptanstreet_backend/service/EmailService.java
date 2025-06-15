@@ -14,6 +14,15 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EmailService {
 
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.host:smtp.gmail.com}")
+    private String mailHost;
+    
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.port:587}")
+    private String mailPort;
+    
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.username:}")
+    private String mailUsername;
+
     private final JavaMailSender mailSender;
 
     /**
@@ -26,17 +35,43 @@ public class EmailService {
     @Async
     public void sendEmail(String to, String subject, String content) {
         try {
+            log.info("📧 E-posta gönderimi başlatılıyor: alıcı={}, konu={}", to, subject);
+            
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            // Gönderen adresini açıkça belirt - ÖNEMLİ!
+            helper.setFrom(mailUsername);
+            log.debug("Gönderen adresi ayarlandı: {}", mailUsername);
             
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(content, true); // true -> HTML içeriği olarak işaretler
             
+            log.debug("Mail sunucusuna bağlanılıyor: {}:{}", mailHost, mailPort);
+            log.debug("Kullanıcı adı: {}", mailUsername);
+                     
             mailSender.send(message);
-            log.info("E-posta başarıyla gönderildi: {}", to);
+            log.info("✅ E-posta başarıyla gönderildi: {}", to);
         } catch (MessagingException e) {
-            log.error("E-posta gönderilemedi: {}", e.getMessage());
+            log.error("❌ E-posta gönderimi başarısız: {}", e.getMessage());
+            log.error("❌ Hata sınıfı: {}", e.getClass().getName());
+            log.error("❌ Stack trace:");
+            for (StackTraceElement element : e.getStackTrace()) {
+                log.error("   ⚠️ at {}", element);
+            }
+            // Eğer MailAuthenticationException ise özel loglama yap
+            if (e.getMessage().contains("535 5.7.8") || 
+                e.getMessage().contains("Authentication failed") || 
+                e.getMessage().contains("authentication failed")) {
+                log.error("🔐 GMAIL KİMLİK DOĞRULAMA HATASI: Gmail için ya uygulama şifresi yanlış ya da 2FA ayarlanmamış.");
+                log.error("🔑 Gmail'de 'Uygulama Şifreleri' özelliğini etkinleştirmeniz ve buradan aldığınız şifreyi kullanmanız gerekiyor.");
+            }
+        } catch (Exception e) {
+            log.error("⚠️ Beklenmeyen e-posta hatası: {}", e.getMessage());
+            for (StackTraceElement element : e.getStackTrace()) {
+                log.error("   ⚠️ at {}", element);
+            }
         }
     }
     

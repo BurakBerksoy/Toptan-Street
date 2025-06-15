@@ -120,14 +120,8 @@ class _VerificationCodePageState extends State<VerificationCodePage> {
             _isLoading = false;
           });
 
-          // Toptancı ise ödeme ekranına, perakendeci ise doğrudan kayıt işlemine yönlendir
-          if (widget.role == UserRole.WHOLESALER) {
-            // Ödeme ekranına yönlendir
-            _navigateToPaymentPage();
-          } else {
-            // Doğrudan kayıt işlemini tamamla
-            _completeRegistration();
-          }
+          // Doğrulama başarılı, doğrudan kayıt işlemini tamamla
+          _completeRegistration();
         } else {
           setState(() {
             _errorMessage = response['message'];
@@ -191,30 +185,31 @@ class _VerificationCodePageState extends State<VerificationCodePage> {
     }
   }
 
-  void _navigateToPaymentPage() {
-    // Ödeme ekranına yönlendir (Bu kısmı ödeme sayfası oluşturulduğunda güncellenecek)
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PaymentPage(
-          firstName: widget.firstName,
-          lastName: widget.lastName,
-          email: widget.email,
-          password: widget.password,
-          role: widget.role,
-        ),
-      ),
-    );
-  }
+  // Ödeme sayfası geçici olarak kaldırıldı
 
   Future<void> _completeRegistration() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = null; // Önceki hata mesajlarını temizle
     });
 
     try {
-      // API çağrısı ile kayıt işlemini tamamla
-      final response = await ApiService.register(
+      // Önce e-posta doğrulama durumunu kontrol et
+      final verificationStatus = await ApiService.checkVerificationStatus(
+        email: widget.email,
+      );
+      
+      if (!verificationStatus['success'] || verificationStatus['data'] == false) {
+        // Doğrulama başarısız
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'E-posta adresiniz doğrulanmamış. Lütfen doğrulama kodunu tekrar kontrol edin.';
+        });
+        return;
+      }
+
+      // Kayıt ve otomatik giriş işlemini tek seferde yap
+      final response = await ApiService.completeRegistrationAndLogin(
         firstName: widget.firstName,
         lastName: widget.lastName,
         email: widget.email,
@@ -228,11 +223,11 @@ class _VerificationCodePageState extends State<VerificationCodePage> {
         });
 
         if (response['success']) {
-          // Başarılı kayıt, kullanıcıyı giriş durumuna getir ve ana sayfaya yönlendir
+          // Başarılı kayıt ve otomatik giriş
           final appState = Provider.of<AppStateProvider>(context, listen: false);
           appState.setLoginStatus(true);
           
-          // Kayıt sayfasını kapat ve ana sayfaya dön
+          // Tüm açık sayfaları kapat ve ana sayfaya yönlendir
           Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
           
           // Başarı mesajı
@@ -246,8 +241,20 @@ class _VerificationCodePageState extends State<VerificationCodePage> {
             ),
           );
         } else {
+          // Kayıt veya giriş sırasında bir hata oluştu
           setState(() {
-            _errorMessage = response['message'];
+            _errorMessage = response['message'] ?? 'Kayıt tamamlanamıyor. Lütfen daha sonra tekrar deneyin.';
+            
+            // "Authentication failed" yerine daha açıklayıcı mesajlar
+            if (_errorMessage != null) {
+              if (_errorMessage!.contains('Authentication failed') || 
+                  _errorMessage!.contains('doğrulanmamış') ||
+                  _errorMessage!.contains('E-posta adresi doğrulanmamış')) {
+                _errorMessage = 'E-posta adresiniz henüz doğrulanmamış. Lütfen doğrulama kodunu tekrar girin.';
+              } else if (_errorMessage!.contains('Email zaten kullanımda')) {
+                _errorMessage = 'Bu e-posta adresi zaten kayıtlı. Lütfen giriş yapmayı deneyin.';
+              }
+            }
           });
         }
       }
@@ -390,33 +397,32 @@ class _VerificationCodePageState extends State<VerificationCodePage> {
                       ),
               ),
               const SizedBox(height: 10),
-              // Rol ve ücret bilgisi
-              if (widget.role == UserRole.WHOLESALER)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue[200]!),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Toptancı Hesabı',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        'Toptancı hesabı için doğrulama sonrası 50 TL ödeme yapmanız gerekmektedir.',
-                        style: GoogleFonts.poppins(fontSize: 12),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+              // Rol bilgisi
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
                 ),
+                child: Column(
+                  children: [
+                    Text(
+                      widget.role == UserRole.WHOLESALER ? 'Toptancı Hesabı' : 'Perakendeci Hesabı',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'E-posta doğrulaması başarıyla tamamlandıktan sonra kayıt işleminiz tamamlanacaktır.',
+                      style: GoogleFonts.poppins(fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -463,202 +469,4 @@ class _VerificationCodePageState extends State<VerificationCodePage> {
   }
 }
 
-// Geçici ödeme sayfası (ileride gerçek bir ödeme sayfası ile değiştirilecek)
-class PaymentPage extends StatefulWidget {
-  final String firstName;
-  final String lastName;
-  final String email;
-  final String password;
-  final UserRole role;
-
-  const PaymentPage({
-    super.key,
-    required this.firstName,
-    required this.lastName,
-    required this.email,
-    required this.password,
-    required this.role,
-  });
-
-  @override
-  State<PaymentPage> createState() => _PaymentPageState();
-}
-
-class _PaymentPageState extends State<PaymentPage> {
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  Future<void> _processPayment() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Normalde burada ödeme işlemi olacak
-    // Şimdilik sadece bekleyelim ve başarılı sayalım
-    await Future.delayed(const Duration(seconds: 2));
-
-    try {
-      // Ödeme başarılı, kayıt işlemini tamamla
-      final response = await ApiService.register(
-        firstName: widget.firstName,
-        lastName: widget.lastName,
-        email: widget.email,
-        password: widget.password,
-        role: widget.role.name,
-      );
-
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-
-        if (response['success']) {
-          // Başarılı kayıt, kullanıcıyı giriş durumuna getir ve ana sayfaya yönlendir
-          final appState = Provider.of<AppStateProvider>(context, listen: false);
-          appState.setLoginStatus(true);
-          
-          // Kayıt sayfasını kapat ve ana sayfaya dön
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-          
-          // Başarı mesajı
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Ödeme ve kayıt işleminiz başarıyla tamamlandı!',
-                style: GoogleFonts.poppins(),
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          setState(() {
-            _errorMessage = response['message'];
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Kayıt tamamlanırken bir hata oluştu: $e';
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Ödeme',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 20),
-            Icon(
-              Icons.payment,
-              size: 80,
-              color: Theme.of(context).primaryColor,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Toptancı Hesabı Ödemesi',
-              style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Toptancı hesabınızı aktifleştirmek için 50 TL ödeme yapmanız gerekmektedir.',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 30),
-            // Ücret bilgisi
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Ödenecek Tutar: ',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '50.00 TL',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
-                      fontSize: 18,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
-            // Hata mesajı
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: Text(
-                  _errorMessage!,
-                  style: GoogleFonts.poppins(
-                    color: Colors.red,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            // Ödeme yap butonu
-            ElevatedButton(
-              onPressed: _isLoading ? null : _processPayment,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 40,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Text(
-                      'Ödeme Yap',
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// Ödeme sayfası geçici olarak kaldırıldı
